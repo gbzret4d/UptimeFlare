@@ -4,80 +4,76 @@ import type { MaintenanceConfig, MonitorTarget, PageConfig, WorkerConfig } from 
  * PureDNS Status Page Configuration
  * Deployed at: https://status.pure-dns.org
  *
- * Node IPs are used for TCP checks internally (Cloudflare Worker),
- * but NEVER displayed on the public status page.
- * Visitors only see the friendly name (e.g. "🇩🇪 Frankfurt (DE-01)").
- *
- * AUTO-GENERATED CONFIG — managed by PureDNS Admin Dashboard.
- * Do not edit manually unless you know what you're doing.
+ * Monitore sind nach Standort und Protokoll gruppiert.
+ * IPs werden vom Worker für TCP-Checks verwendet; nie öffentlich angezeigt.
  */
 
 const pageConfig: PageConfig = {
   title: 'PureDNS Status',
+  logo: '/puredns-logo.png',
+  customFooter:
+    '<p style="text-align: center; font-size: 12px; margin-top: 10px; color: #888;">PureDNS — Privacy-first DNS. <a href="https://pure-dns.org" target="_blank" style="color: #0099cc;">pure-dns.org</a></p>',
   links: [
     { link: 'https://pure-dns.org', label: 'Website' },
+    { link: 'https://pure-dns.org/docs', label: 'Setup Guide' },
   ],
+  group: {
+    '🇩🇪 Frankfurt, Germany': ['node-de-01-doh', 'node-de-01-dot', 'node-de-01-doq'],
+    '🇦🇹 Vienna, Austria':    ['node-at-01-doh', 'node-at-01-dot', 'node-at-01-doq'],
+    '🇷🇸 Belgrade, Serbia':   ['node-rs-01-doh', 'node-rs-01-dot', 'node-rs-01-doq'],
+    '🇺🇸 New York, USA':      ['node-us-01-doh', 'node-us-01-dot', 'node-us-01-doq'],
+    '🇭🇰 Hong Kong':          ['node-hk-01-doh', 'node-hk-01-dot', 'node-hk-01-doq'],
+    '🇵🇱 Warsaw, Poland':     ['node-pl-01-doh', 'node-pl-01-dot', 'node-pl-01-doq'],
+    '⚙️ Infrastructure':      ['api-health', 'website'],
+  },
+}
+
+/** Build DoH + DoT + DoQ monitors for a single edge node. */
+function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[] {
+  return [
+    {
+      id: `${prefix}-doh`,
+      name: 'DoH (HTTPS)',
+      method: 'TCP',
+      target: `${ip}:443`,
+      tooltip: `DNS-over-HTTPS · ${label}`,
+      statusPageLink: 'https://pure-dns.org/docs',
+      timeout: 10,
+    },
+    {
+      id: `${prefix}-dot`,
+      name: 'DoT (TLS)',
+      method: 'TCP',
+      target: `${ip}:853`,
+      tooltip: `DNS-over-TLS · ${label}`,
+      statusPageLink: 'https://pure-dns.org/docs',
+      timeout: 10,
+    },
+    {
+      id: `${prefix}-doq`,
+      name: 'DoQ (QUIC)',
+      method: 'TCP',
+      target: `${ip}:853`,
+      tooltip: `DNS-over-QUIC · ${label} (port 853)`,
+      statusPageLink: 'https://pure-dns.org/docs',
+      timeout: 10,
+    },
+  ]
 }
 
 const workerConfig: WorkerConfig = {
   kvWriteCooldownMinutes: 3,
   notification: {
     timeZone: 'Europe/Vienna',
-    // Grace period: 2 consecutive failures before alerting (~2 min minimum downtime)
     gracePeriod: 2,
   },
   monitors: [
-    // ─── DNS Edge Nodes ───────────────────────────────────────────────────────
-    // IPs are used by the Cloudflare Worker for TCP checks; not displayed publicly.
-    {
-      id: 'node-de-01',
-      name: '🇩🇪 Frankfurt',
-      method: 'TCP',
-      target: '45.145.42.184:443',
-      tooltip: 'DNS-over-HTTPS · Frankfurt, Germany',
-      statusPageLink: 'https://pure-dns.org',
-    },
-    {
-      id: 'node-at-01',
-      name: '🇦🇹 Vienna',
-      method: 'TCP',
-      target: '91.244.70.155:443',
-      tooltip: 'DNS-over-HTTPS · Vienna, Austria',
-      statusPageLink: 'https://pure-dns.org',
-    },
-    {
-      id: 'node-rs-01',
-      name: '🇷🇸 Belgrade',
-      method: 'TCP',
-      target: '195.252.108.16:443',
-      tooltip: 'DNS-over-HTTPS · Belgrade, Serbia',
-      statusPageLink: 'https://pure-dns.org',
-    },
-    {
-      id: 'node-us-01',
-      name: '🇺🇸 New York',
-      method: 'TCP',
-      target: '143.20.112.35:443',
-      tooltip: 'DNS-over-HTTPS · New York, United States',
-      statusPageLink: 'https://pure-dns.org',
-    },
-    {
-      id: 'node-hk-01',
-      name: '🇭🇰 Hong Kong',
-      method: 'TCP',
-      target: '175.29.22.9:443',
-      tooltip: 'DNS-over-HTTPS · Hong Kong',
-      statusPageLink: 'https://pure-dns.org',
-    },
-    {
-      id: 'node-pl-01',
-      name: '🇵🇱 Warsaw',
-      method: 'TCP',
-      target: '31.59.137.88:443',
-      tooltip: 'DNS-over-HTTPS · Warsaw, Poland',
-      statusPageLink: 'https://pure-dns.org',
-    },
-
+    ...nodeMonitors('node-de-01', 'Frankfurt, Germany',    '45.145.42.184'),
+    ...nodeMonitors('node-at-01', 'Vienna, Austria',       '91.244.70.155'),
+    ...nodeMonitors('node-rs-01', 'Belgrade, Serbia',      '195.252.108.16'),
+    ...nodeMonitors('node-us-01', 'New York, USA',         '143.20.112.35'),
+    ...nodeMonitors('node-hk-01', 'Hong Kong',             '175.29.22.9'),
+    ...nodeMonitors('node-pl-01', 'Warsaw, Poland',        '31.59.137.88'),
     // ─── Central Infrastructure ───────────────────────────────────────────────
     {
       id: 'api-health',
