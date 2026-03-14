@@ -34,7 +34,7 @@ function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[
     {
       id: `${prefix}-doh`,
       name: 'DoH (HTTPS)',
-      method: 'TCP',
+      method: 'TCP_PING',
       target: `${ip}:443`,
       tooltip: `DNS-over-HTTPS · ${label}`,
       statusPageLink: 'https://pure-dns.org/docs',
@@ -43,7 +43,7 @@ function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[
     {
       id: `${prefix}-dot`,
       name: 'DoT (TLS)',
-      method: 'TCP',
+      method: 'TCP_PING',
       target: `${ip}:853`,
       tooltip: `DNS-over-TLS · ${label}`,
       statusPageLink: 'https://pure-dns.org/docs',
@@ -52,7 +52,7 @@ function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[
     {
       id: `${prefix}-doq`,
       name: 'DoQ (QUIC)',
-      method: 'TCP',
+      method: 'TCP_PING',
       target: `${ip}:853`,
       tooltip: `DNS-over-QUIC · ${label} (port 853)`,
       statusPageLink: 'https://pure-dns.org/docs',
