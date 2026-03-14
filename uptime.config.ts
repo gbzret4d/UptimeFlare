@@ -10,7 +10,7 @@ import type { MaintenanceConfig, MonitorTarget, PageConfig, WorkerConfig } from 
 
 const pageConfig: PageConfig = {
   title: 'PureDNS Status',
-  logo: '/puredns-logo.png',
+  logo: '/puredns-status-logo.png',
   customFooter:
     '<p style="text-align: center; font-size: 12px; margin-top: 10px; color: #888;">PureDNS — Privacy-first DNS. <a href="https://pure-dns.org" target="_blank" style="color: #0099cc;">pure-dns.org</a></p>',
   links: [
