@@ -9,4 +9,4 @@ database_name = "uptimeflare_d1"
 database_id = "a0697d24-e725-4aaf-988f-de9cf03a16cf"
 
 [triggers]
-crons = ["* * * * *"]
+crons = ["*/5 * * * *"]

@@ -18,13 +18,13 @@ const pageConfig: PageConfig = {
     { link: 'https://pure-dns.org/docs', label: 'Setup Guide' },
   ],
   group: {
-    '🇩🇪 Frankfurt, Germany': ['node-de-01-doh', 'node-de-01-dot', 'node-de-01-doq'],
-    '🇦🇹 Vienna, Austria':    ['node-at-01-doh', 'node-at-01-dot', 'node-at-01-doq'],
-    '🇷🇸 Belgrade, Serbia':   ['node-rs-01-doh', 'node-rs-01-dot', 'node-rs-01-doq'],
-    '🇺🇸 New York, USA':      ['node-us-01-doh', 'node-us-01-dot', 'node-us-01-doq'],
-    '🇭🇰 Hong Kong':          ['node-hk-01-doh', 'node-hk-01-dot', 'node-hk-01-doq'],
-    '🇵🇱 Warsaw, Poland':     ['node-pl-01-doh', 'node-pl-01-dot', 'node-pl-01-doq'],
-    '⚙️ Infrastructure':      ['api-health', 'website'],
+    '🇩🇪 Germany – Frankfurt':   ['node-de-01-doh', 'node-de-01-dot', 'node-de-01-doq'],
+    '🇦🇹 Austria – Vienna':     ['node-at-01-doh', 'node-at-01-dot', 'node-at-01-doq'],
+    '🇷🇸 Serbia – Belgrade':    ['node-rs-01-doh', 'node-rs-01-dot', 'node-rs-01-doq'],
+    '🇺🇸 United States – New York': ['node-us-01-doh', 'node-us-01-dot', 'node-us-01-doq'],
+    '🇭🇰 Hong Kong – Hong Kong': ['node-hk-01-doh', 'node-hk-01-dot', 'node-hk-01-doq'],
+    '🇵🇱 Poland – Warsaw':      ['node-pl-01-doh', 'node-pl-01-dot', 'node-pl-01-doq'],
+    '⚙️ Infrastructure':        ['api-health', 'website'],
   },
 }
 
