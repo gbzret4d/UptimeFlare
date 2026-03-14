@@ -136,7 +136,7 @@ export default function IncidentsPage({ monitors }: { monitors: MonitorTarget[] 
 export async function getServerSideProps() {
   const { workerConfig } = await import('@/uptime.config')
   // Only present these values to client
-  const monitors: MonitorTarget[] = workerConfig.monitors.map((monitor) => ({
+  const monitors: MonitorTarget[] = workerConfig.monitors.map((monitor: MonitorTarget) => ({
     id: monitor.id,
     name: monitor.name,
   })) as MonitorTarget[]

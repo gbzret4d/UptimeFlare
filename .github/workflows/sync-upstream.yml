@@ -1,0 +1,63 @@
+name: Sync Upstream & Redeploy
+
+on:
+  schedule:
+    # Every Sunday at 03:00 UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+jobs:
+  sync-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Backup our custom config
+        run: cp uptime.config.ts /tmp/uptime.config.ts.bak
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/lyc8503/UptimeFlare.git || true
+          git fetch upstream
+
+      - name: Merge upstream/main into our fork
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git merge upstream/main --no-edit --strategy-option=theirs || true
+
+      - name: Restore our custom config (always wins on conflict)
+        run: cp /tmp/uptime.config.ts.bak uptime.config.ts
+
+      - name: Commit restored config if needed
+        run: |
+          git add uptime.config.ts tsconfig.json
+          git diff --cached --quiet || git commit -m "chore: restore PureDNS custom config after upstream sync"
+
+      - name: Push changes
+        run: git push origin main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build with next-on-pages
+        run: npx @cloudflare/next-on-pages
+
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler pages deploy .vercel/output/static --project-name=uptimeflare --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_WRANGLER_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: db7e366dc87623232444943b8978e7f9
