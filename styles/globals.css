@@ -1,0 +1,119 @@
+/* PureDNS Status Page — global theme matching pure-dns.org */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --pd-bg: #050505;
+  --pd-surface: #0d0d0d;
+  --pd-surface2: #141414;
+  --pd-border: rgba(255, 255, 255, 0.07);
+  --pd-purple: #7c3aed;
+  --pd-purple-light: #a78bfa;
+  --pd-cyan: #06b6d4;
+  --pd-green: #10b981;
+  --pd-red: #ef4444;
+  --pd-text: #ededed;
+  --pd-text-muted: #6b7280;
+  --pd-glow: rgba(124, 58, 237, 0.15);
+}
+
+html, body {
+  background: var(--pd-bg) !important;
+  color: var(--pd-text) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Mantine overrides */
+[data-mantine-color-scheme] {
+  --mantine-color-body: var(--pd-bg) !important;
+  --mantine-color-dark-7: var(--pd-bg) !important;
+  --mantine-color-dark-6: var(--pd-surface) !important;
+  --mantine-color-dark-5: var(--pd-surface2) !important;
+  --mantine-color-dark-4: #222 !important;
+  --mantine-color-dark-3: #333 !important;
+  --mantine-color-dark-0: var(--pd-text) !important;
+  --mantine-color-dimmed: var(--pd-text-muted) !important;
+}
+
+/* Background glow orbs matching pure-dns.org */
+body::before {
+  content: '';
+  position: fixed;
+  top: -20%;
+  left: -10%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.12) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -20%;
+  right: -10%;
+  width: 45vw;
+  height: 45vw;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+main {
+  position: relative;
+  z-index: 1;
+}
+
+/* Header */
+header {
+  background: rgba(5, 5, 5, 0.85) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--pd-border) !important;
+}
+
+/* Cards / monitor items */
+.mantine-Paper-root,
+[class*='Paper-root'] {
+  background: rgba(13, 13, 13, 0.7) !important;
+  border: 1px solid var(--pd-border) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Divider */
+.mantine-Divider-root hr,
+hr {
+  border-color: var(--pd-border) !important;
+}
+
+/* Group accordion */
+[class*='group'],
+[class*='Group'] {
+  border-color: var(--pd-border);
+}
+
+/* Progress bars — healthy = cyan (PureDNS brand), unhealthy = red */
+[class*='progress'] [data-variant='filled'],
+.mantine-Progress-section {
+  background: var(--pd-green) !important;
+}
+
+/* Links */
+a {
+  color: var(--pd-purple-light);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+a:hover {
+  color: var(--pd-cyan);
+}
+
+/* Badges */
+[class*='Badge-root'] {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 500 !important;
+}
+
+/* Overall status icon color overrides handled inline */
