@@ -1,12 +1,19 @@
 import { MonitorTarget, WebhookConfig } from '../../types/config'
 import { maintenances, workerConfig } from '../../uptime.config'
 
-async function getWorkerLocation() {
-  const res = await fetch('https://cloudflare.com/cdn-cgi/trace')
-  const text = await res.text()
-
-  const colo = /^colo=(.*)$/m.exec(text)?.[1]
-  return colo
+async function getWorkerLocation(): Promise<string | null> {
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 5000)
+    const res = await fetch('https://cloudflare.com/cdn-cgi/trace', { signal: controller.signal })
+    clearTimeout(timer)
+    const text = await res.text()
+    const colo = /^colo=(.*)$/m.exec(text)?.[1]
+    return colo ?? null
+  } catch (e) {
+    console.log('getWorkerLocation failed (timeout or error):', e)
+    return null
+  }
 }
 
 const fetchTimeout = (

@@ -17,7 +17,14 @@ const Worker = {
     console.log(`Running scheduled event on ${workerLocation}...`)
 
     // Create a wrapped MonitorState from stored compacted state
-    const state = new CompactedMonitorStateWrapper(await getFromStore(env, 'state'))
+    let state: CompactedMonitorStateWrapper
+    try {
+      state = new CompactedMonitorStateWrapper(await getFromStore(env, 'state'))
+    } catch (e) {
+      console.log('Error reading state from D1, resetting:', e)
+      await setToStore(env, 'state', '')
+      state = new CompactedMonitorStateWrapper(null)
+    }
     state.data.overallDown = 0
     state.data.overallUp = 0
 
@@ -33,118 +40,146 @@ const Worker = {
     for (const monitor of workerConfig.monitors) {
       checkQueue.push(limit(() => doMonitor(monitor, workerLocation, env)))
     }
-    for (const result of await Promise.all(checkQueue)) {
-      checkResult[result.id] = result
+    try {
+      for (const result of await Promise.all(checkQueue)) {
+        checkResult[result.id] = result
+      }
+    } catch (e) {
+      console.log('Error during monitor checks:', e)
     }
 
     // Update each monitor's state based on check results
     for (const monitor of workerConfig.monitors) {
-      console.log(`Processing monitor result: ${monitor.name} (${monitor.id})`)
+      try {
+        console.log(`Processing monitor result: ${monitor.name} (${monitor.id})`)
 
-      let monitorStatusChanged = false
-      const { location: checkLocation, status } = checkResult[monitor.id]
+        let monitorStatusChanged = false
+        const checkRes = checkResult[monitor.id] || { location: workerLocation, status: { ping: 0, up: false, err: 'Check failed' } }
+        const { location: checkLocation, status } = checkRes
 
-      // Update counters
-      status.up ? state.data.overallUp++ : state.data.overallDown++
+        // Update counters
+        status.up ? state.data.overallUp++ : state.data.overallDown++
 
-      // Update incidents
-      // Create a dummy incident to store the start time of the monitoring and simplify logic
-      if (state.incidentLen(monitor.id) === 0) {
-        state.appendIncident(monitor.id, {
-          start: [currentTimeSecond],
-          end: currentTimeSecond,
-          error: ['dummy'],
-        })
-      }
+        // Update incidents
+        // Create a dummy incident to store the start time of the monitoring and simplify logic
+        if (state.incidentLen(monitor.id) === 0) {
+          state.appendIncident(monitor.id, {
+            start: [currentTimeSecond],
+            end: currentTimeSecond,
+            error: ['dummy'],
+          })
+        }
 
-      // Then lastIncident here must not be null
-      let lastIncident = state.getIncident(monitor.id, state.incidentLen(monitor.id) - 1)
+        // Then lastIncident here must not be null
+        let lastIncident = state.getIncident(monitor.id, state.incidentLen(monitor.id) - 1)
 
-      if (status.up) {
-        // Current status is up
-        // close existing incident if any
-        if (lastIncident.end === null) {
-          lastIncident.end = currentTimeSecond
-          // write back the modified last incident
-          state.setIncident(monitor.id, state.incidentLen(monitor.id) - 1, lastIncident)
+        if (status.up) {
+          // Current status is up
+          // close existing incident if any
+          if (lastIncident.end === null) {
+            lastIncident.end = currentTimeSecond
+            // write back the modified last incident
+            state.setIncident(monitor.id, state.incidentLen(monitor.id) - 1, lastIncident)
 
-          monitorStatusChanged = true
+            monitorStatusChanged = true
+            try {
+              if (
+                // grace period not set OR ...
+                workerConfig.notification?.gracePeriod === undefined ||
+                // only when we have sent a notification for DOWN status, we will send a notification for UP status (within 30 seconds of possible drift)
+                currentTimeSecond - lastIncident.start[0] >=
+                  (workerConfig.notification.gracePeriod + 1) * 60 - 30
+              ) {
+                await formatAndNotify(monitor, true, lastIncident.start[0], currentTimeSecond, 'OK')
+              } else {
+                console.log(
+                  `grace period (${workerConfig.notification?.gracePeriod}m) not met, skipping webhook UP notification for ${monitor.name}`
+                )
+              }
+
+              console.log('Calling config onStatusChange callback...')
+              await workerConfig.callbacks?.onStatusChange?.(
+                env,
+                monitor,
+                true,
+                lastIncident.start[0],
+                currentTimeSecond,
+                'OK'
+              )
+            } catch (e) {
+              console.log('Error calling callback: ')
+              console.log(e)
+            }
+          }
+        } else {
+          // Current status is down
+          // open new incident if not already open
+          if (lastIncident.end !== null) {
+            state.appendIncident(monitor.id, {
+              start: [currentTimeSecond],
+              end: null,
+              error: [status.err],
+            })
+            monitorStatusChanged = true
+          } else if (lastIncident.end === null && lastIncident.error.slice(-1)[0] !== status.err) {
+            // append if the error message changes
+            lastIncident.start.push(currentTimeSecond)
+            lastIncident.error.push(status.err)
+
+            // write back the modified last incident
+            state.setIncident(monitor.id, state.incidentLen(monitor.id) - 1, lastIncident)
+            monitorStatusChanged = true
+          }
+
+          const currentIncident = state.getIncident(monitor.id, state.incidentLen(monitor.id) - 1)
           try {
             if (
-              // grace period not set OR ...
-              workerConfig.notification?.gracePeriod === undefined ||
-              // only when we have sent a notification for DOWN status, we will send a notification for UP status (within 30 seconds of possible drift)
-              currentTimeSecond - lastIncident.start[0] >=
-                (workerConfig.notification.gracePeriod + 1) * 60 - 30
+              // monitor status changed AND...
+              (monitorStatusChanged &&
+                // grace period not set OR ...
+                (workerConfig.notification?.gracePeriod === undefined ||
+                  // have sent a notification for DOWN status
+                  currentTimeSecond - currentIncident.start[0] >=
+                    (workerConfig.notification.gracePeriod + 1) * 60 - 30)) ||
+              // grace period is set AND...
+              (workerConfig.notification?.gracePeriod !== undefined &&
+                // grace period is met
+                currentTimeSecond - currentIncident.start[0] >=
+                  workerConfig.notification.gracePeriod * 60 - 30 &&
+                currentTimeSecond - currentIncident.start[0] <
+                  workerConfig.notification.gracePeriod * 60 + 30)
             ) {
-              await formatAndNotify(monitor, true, lastIncident.start[0], currentTimeSecond, 'OK')
+              if (
+                currentIncident.start[0] !== currentTimeSecond &&
+                workerConfig.notification?.skipErrorChangeNotification
+              ) {
+                console.log(
+                  'Skipping notification for following error reason change due to user config'
+                )
+              } else {
+                await formatAndNotify(
+                  monitor,
+                  false,
+                  currentIncident.start[0],
+                  currentTimeSecond,
+                  status.err
+                )
+              }
             } else {
               console.log(
-                `grace period (${workerConfig.notification?.gracePeriod}m) not met, skipping webhook UP notification for ${monitor.name}`
+                `Grace period (${workerConfig.notification
+                  ?.gracePeriod}m) not met or no change (currently down for ${
+                  currentTimeSecond - currentIncident.start[0]
+                }s, changed ${monitorStatusChanged}), skipping webhook DOWN notification for ${
+                  monitor.name
+                }`
               )
             }
 
-            console.log('Calling config onStatusChange callback...')
-            await workerConfig.callbacks?.onStatusChange?.(
-              env,
-              monitor,
-              true,
-              lastIncident.start[0],
-              currentTimeSecond,
-              'OK'
-            )
-          } catch (e) {
-            console.log('Error calling callback: ')
-            console.log(e)
-          }
-        }
-      } else {
-        // Current status is down
-        // open new incident if not already open
-        if (lastIncident.end !== null) {
-          state.appendIncident(monitor.id, {
-            start: [currentTimeSecond],
-            end: null,
-            error: [status.err],
-          })
-          monitorStatusChanged = true
-        } else if (lastIncident.end === null && lastIncident.error.slice(-1)[0] !== status.err) {
-          // append if the error message changes
-          lastIncident.start.push(currentTimeSecond)
-          lastIncident.error.push(status.err)
-
-          // write back the modified last incident
-          state.setIncident(monitor.id, state.incidentLen(monitor.id) - 1, lastIncident)
-          monitorStatusChanged = true
-        }
-
-        const currentIncident = state.getIncident(monitor.id, state.incidentLen(monitor.id) - 1)
-        try {
-          if (
-            // monitor status changed AND...
-            (monitorStatusChanged &&
-              // grace period not set OR ...
-              (workerConfig.notification?.gracePeriod === undefined ||
-                // have sent a notification for DOWN status
-                currentTimeSecond - currentIncident.start[0] >=
-                  (workerConfig.notification.gracePeriod + 1) * 60 - 30)) ||
-            // grace period is set AND...
-            (workerConfig.notification?.gracePeriod !== undefined &&
-              // grace period is met
-              currentTimeSecond - currentIncident.start[0] >=
-                workerConfig.notification.gracePeriod * 60 - 30 &&
-              currentTimeSecond - currentIncident.start[0] <
-                workerConfig.notification.gracePeriod * 60 + 30)
-          ) {
-            if (
-              currentIncident.start[0] !== currentTimeSecond &&
-              workerConfig.notification?.skipErrorChangeNotification
-            ) {
-              console.log(
-                'Skipping notification for following error reason change due to user config'
-              )
-            } else {
-              await formatAndNotify(
+            if (monitorStatusChanged) {
+              console.log('Calling config onStatusChange callback...')
+              await workerConfig.callbacks?.onStatusChange?.(
+                env,
                 monitor,
                 false,
                 currentIncident.start[0],
@@ -152,83 +187,65 @@ const Worker = {
                 status.err
               )
             }
-          } else {
-            console.log(
-              `Grace period (${workerConfig.notification
-                ?.gracePeriod}m) not met or no change (currently down for ${
-                currentTimeSecond - currentIncident.start[0]
-              }s, changed ${monitorStatusChanged}), skipping webhook DOWN notification for ${
-                monitor.name
-              }`
-            )
+          } catch (e) {
+            console.log('Error calling callback: ')
+            console.log(e)
           }
 
-          if (monitorStatusChanged) {
-            console.log('Calling config onStatusChange callback...')
-            await workerConfig.callbacks?.onStatusChange?.(
+          try {
+            console.log('Calling config onIncident callback...')
+            await workerConfig.callbacks?.onIncident?.(
               env,
               monitor,
-              false,
               currentIncident.start[0],
               currentTimeSecond,
               status.err
             )
+          } catch (e) {
+            console.log('Error calling callback: ')
+            console.log(e)
           }
-        } catch (e) {
-          console.log('Error calling callback: ')
-          console.log(e)
         }
 
-        try {
-          console.log('Calling config onIncident callback...')
-          await workerConfig.callbacks?.onIncident?.(
-            env,
-            monitor,
-            currentIncident.start[0],
-            currentTimeSecond,
-            status.err
-          )
-        } catch (e) {
-          console.log('Error calling callback: ')
-          console.log(e)
-        }
-      }
-
-      // append to latency data
-      state.appendLatency(monitor.id, {
-        loc: checkLocation,
-        ping: status.ping,
-        time: currentTimeSecond,
-      })
-
-      // discard old data
-      while (state.getFirstLatency(monitor.id).time < currentTimeSecond - 12 * 60 * 60) {
-        state.unshiftLatency(monitor.id)
-      }
-
-      // discard old incidents
-      while (
-        state.incidentLen(monitor.id) > 0 &&
-        state.getIncident(monitor.id, 0).end &&
-        state.getIncident(monitor.id, 0).end! < currentTimeSecond - 90 * 24 * 60 * 60
-      ) {
-        state.shiftIncident(monitor.id)
-      }
-
-      if (
-        state.incidentLen(monitor.id) === 0 ||
-        (state.getIncident(monitor.id, 0).start[0] > currentTimeSecond - 90 * 24 * 60 * 60 &&
-          state.getIncident(monitor.id, 0).error[0] != 'dummy')
-      ) {
-        // put the dummy incident back
-        state.unshiftIncident(monitor.id, {
-          start: [currentTimeSecond - 90 * 24 * 60 * 60],
-          end: currentTimeSecond - 90 * 24 * 60 * 60,
-          error: ['dummy'],
+        // append to latency data
+        state.appendLatency(monitor.id, {
+          loc: checkLocation,
+          ping: status.ping,
+          time: currentTimeSecond,
         })
-      }
 
-      statusChanged ||= monitorStatusChanged
+        // discard old data
+        while (state.getFirstLatency(monitor.id).time < currentTimeSecond - 12 * 60 * 60) {
+          state.unshiftLatency(monitor.id)
+        }
+
+        // discard old incidents
+        while (
+          state.incidentLen(monitor.id) > 0 &&
+          state.getIncident(monitor.id, 0).end &&
+          state.getIncident(monitor.id, 0).end! < currentTimeSecond - 90 * 24 * 60 * 60
+        ) {
+          state.shiftIncident(monitor.id)
+        }
+
+        if (
+          state.incidentLen(monitor.id) === 0 ||
+          (state.getIncident(monitor.id, 0).start[0] > currentTimeSecond - 90 * 24 * 60 * 60 &&
+            state.getIncident(monitor.id, 0).error[0] != 'dummy')
+        ) {
+          // put the dummy incident back
+          state.unshiftIncident(monitor.id, {
+            start: [currentTimeSecond - 90 * 24 * 60 * 60],
+            end: currentTimeSecond - 90 * 24 * 60 * 60,
+            error: ['dummy'],
+          })
+        }
+
+        statusChanged ||= monitorStatusChanged
+      } catch (monitorErr) {
+        console.log(`Error processing monitor ${monitor.id}:`, monitorErr)
+        state.data.overallDown++
+      }
     }
 
     console.log(
@@ -249,7 +266,6 @@ const Worker = {
     }
   },
 }
-
 export default Worker
 
 export class RemoteChecker extends DurableObject {
