@@ -53,10 +53,10 @@ function nodeMonitors(prefix: string, label: string, ip: string, host: string): 
     },
     {
       id: `${prefix}-doq`,
-      name: 'DNSCrypt',
+      name: 'DoQ (QUIC)',
       method: 'TCP_PING',
-      target: `${ip}:8443`,
-      tooltip: `DNSCrypt · ${label}`,
+      target: `${ip}:853`,
+      tooltip: `DNS-over-QUIC port 853 · ${label}`,
       statusPageLink: 'https://pure-dns.org/docs',
       timeout: 10000,
     },
