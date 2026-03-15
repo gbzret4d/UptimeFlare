@@ -46,7 +46,7 @@ export default async function handler(req: NextRequest): Promise<Response> {
     }
 
     const compactedState = new CompactedMonitorStateWrapper(
-      await getFromStore(process.env as any, 'state')
+      await getFromStore(process.env as any, 'state_v2')
     )
 
     const lastIncident = compactedState.getIncident(
