@@ -51,13 +51,12 @@ function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[
     },
     {
       id: `${prefix}-doq`,
-      name: 'DoH Endpoint',
-      method: 'GET',
-      target: `https://${ip}/dns-query?name=example.com&type=A`,
-      tooltip: `DNS-over-HTTPS resolve check · ${label}`,
+      name: 'Port :853 TCP',
+      method: 'TCP_PING',
+      target: `${ip}:853`,
+      tooltip: `Port 853 TCP reachability check · ${label}`,
       statusPageLink: 'https://pure-dns.org/docs',
       timeout: 10,
-      expectedCodes: [200],
     },
   ]
 }
