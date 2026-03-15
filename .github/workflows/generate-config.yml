@@ -25,7 +25,7 @@ jobs:
         env:
           SERVERS_JSON: ${{ inputs.servers_json }}
         run: |
-          node -e "
+          cat > /tmp/gen.js << 'ENDSCRIPT'
           const servers = JSON.parse(process.env.SERVERS_JSON);
 
           const COUNTRY_EMOJI = {
@@ -38,7 +38,6 @@ jobs:
           };
 
           function getMonitorId(server) {
-            // Convert puredns-edge-de-01 → node-de-01
             const parts = server.name.split('-');
             if (parts.length >= 4) {
               return 'node-' + parts[parts.length-2] + '-' + parts[parts.length-1];
@@ -46,23 +45,48 @@ jobs:
             return 'node-' + server.name.replace(/[^a-z0-9]/g, '-');
           }
 
-          const monitors = servers
-            .filter(s => s.is_active)
-            .filter(s => !s.maintenance_mode)
-            .map(s => {
-              const emoji = COUNTRY_EMOJI[s.country_code] || '🌐';
-              const city = s.city || s.country_code;
-              return {
-                id: getMonitorId(s),
-                name: emoji + ' ' + city,
+          function nodeMonitors(prefix, label, ip, host) {
+            return [
+              {
+                id: prefix + '-doh',
+                name: 'DoH (HTTPS)',
+                method: 'GET',
+                target: 'https://' + host + '/dns-query',
+                expectedCodes: [200, 400],
+                tooltip: 'DNS-over-HTTPS · ' + label,
+                statusPageLink: 'https://pure-dns.org/docs',
+              },
+              {
+                id: prefix + '-dot',
+                name: 'DoT (TLS)',
                 method: 'TCP_PING',
-                target: s.ip_address_v4 + ':443',
-                tooltip: 'DNS-over-HTTPS · ' + city + ', ' + s.country_code,
-                statusPageLink: 'https://pure-dns.org',
-              };
-            });
+                target: ip + ':853',
+                tooltip: 'DNS-over-TLS · ' + label,
+                statusPageLink: 'https://pure-dns.org/docs',
+                timeout: 10000,
+              },
+              {
+                id: prefix + '-doq',
+                name: 'DoQ (QUIC)',
+                method: 'TCP_PING',
+                target: ip + ':853',
+                tooltip: 'DNS-over-QUIC port 853 · ' + label,
+                statusPageLink: 'https://pure-dns.org/docs',
+                timeout: 10000,
+              },
+            ];
+          }
 
-          // Add central infrastructure
+          const activeServers = servers.filter(s => s.is_active && !s.maintenance_mode);
+          let monitors = [];
+          for (const s of activeServers) {
+            const emoji = COUNTRY_EMOJI[s.country_code] || '🌐';
+            const city = s.city || s.country_code;
+            const prefix = getMonitorId(s);
+            const host = prefix.replace('node-', '') + '-base.pure-dns.org';
+            monitors.push(...nodeMonitors(prefix, city + ', ' + s.country_code, s.ip_address_v4, host));
+          }
+
           monitors.push({
             id: 'api-health',
             name: '⚙️ API',
@@ -82,42 +106,49 @@ jobs:
             statusPageLink: 'https://pure-dns.org',
           });
 
-          // Build maintenances for nodes in maintenance_mode
           const maintenances = servers
             .filter(s => s.is_active && s.maintenance_mode)
-            .map(s => {
-              const now = Date.now();
-              const endFarFuture = now + 365 * 24 * 60 * 60 * 1000;
-              return {
-                monitors: [getMonitorId(s)],
-                title: 'Scheduled Maintenance',
-                body: s.maintenance_reason || 'Node is under scheduled maintenance.',
-                start: now,
-                end: endFarFuture,
-              };
-            });
+            .map(s => ({
+              monitors: [getMonitorId(s)],
+              title: 'Scheduled Maintenance',
+              body: s.maintenance_reason || 'Node is under scheduled maintenance.',
+              start: Date.now(),
+              end: Date.now() + 365 * 24 * 60 * 60 * 1000,
+            }));
 
-          const monitorsJson = JSON.stringify(monitors, null, 4).replace(/\"/g, '\"');
-          const maintenancesJson = JSON.stringify(maintenances, null, 4);
+          const monitorsJson = JSON.stringify(monitors, null, 2);
+          const maintenancesJson = JSON.stringify(maintenances, null, 2);
 
-          const config = \`import type { MaintenanceConfig, MonitorTarget, PageConfig, WorkerConfig } from './types/config'
+          const groupObj = {};
+          for (const s of activeServers) {
+            const emoji = COUNTRY_EMOJI[s.country_code] || '🌐';
+            const city = s.city || s.country_code;
+            const key = emoji + ' ' + city + ' \u2013 ' + s.country_code;
+            const prefix = getMonitorId(s);
+            groupObj[key] = [prefix + '-doh', prefix + '-dot', prefix + '-doq'];
+          }
+          groupObj['⚙️ Infrastructure'] = ['api-health', 'website'];
+          const groupJson = JSON.stringify(groupObj, null, 2);
+
+          const ts = `import type { MaintenanceConfig, MonitorTarget, PageConfig, WorkerConfig } from './types/config'
 
 /**
  * PureDNS Status Page Configuration
  * Deployed at: https://status.pure-dns.org
  *
  * AUTO-GENERATED — managed by PureDNS Admin Dashboard.
- * Generated: \${new Date().toISOString()}
- *
- * Node IPs are used for TCP checks internally (Cloudflare Worker),
- * but NEVER displayed on the public status page.
+ * Generated: ${new Date().toISOString()}
  */
 
 const pageConfig: PageConfig = {
   title: 'PureDNS Status',
+  logo: '/puredns-status-logo.svg',
+  customFooter: '<p style="text-align: center; font-size: 12px; margin-top: 10px; color: #888;">PureDNS — Privacy-first DNS. <a href="https://pure-dns.org" target="_blank" style="color: #0099cc;">pure-dns.org</a></p>',
   links: [
     { link: 'https://pure-dns.org', label: 'Website' },
+    { link: 'https://pure-dns.org/docs', label: 'Setup Guide' },
   ],
+  group: ${groupJson},
 }
 
 const workerConfig: WorkerConfig = {
@@ -126,17 +157,17 @@ const workerConfig: WorkerConfig = {
     timeZone: 'Europe/Vienna',
     gracePeriod: 2,
   },
-  monitors: \${monitorsJson} as MonitorTarget[],
+  monitors: ${monitorsJson} as MonitorTarget[],
 }
 
-const maintenances: MaintenanceConfig[] = \${maintenancesJson}
+const maintenances: MaintenanceConfig[] = ${maintenancesJson}
 
 export { maintenances, pageConfig, workerConfig }
-\`;
-
-          require('fs').writeFileSync('uptime.config.ts', config);
-          console.log('Generated uptime.config.ts with ' + monitors.length + ' monitors and ' + maintenances.length + ' maintenances.');
-          "
+`;
+          require('fs').writeFileSync('uptime.config.ts', ts);
+          console.log('Generated uptime.config.ts with', monitors.length, 'monitors');
+          ENDSCRIPT
+          node /tmp/gen.js
 
       - name: Show generated config
         run: cat uptime.config.ts
@@ -144,7 +175,7 @@ export { maintenances, pageConfig, workerConfig }
       - name: Commit updated config
         run: |
           git config user.name "PureDNS Bot"
-          git config user.email "bot@pure-dns.org"
+          git config user.email "automated@pure-dns.org"
           git add uptime.config.ts
           git diff --cached --quiet || git commit -m "chore: auto-sync monitors from PureDNS dashboard [skip ci]"
           git push origin main
