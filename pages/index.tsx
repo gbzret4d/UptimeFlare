@@ -71,7 +71,7 @@ export default function Home({
 export async function getServerSideProps() {
   const { workerConfig } = await import('@/uptime.config')
   // Read state as string from storage, to avoid hitting server-side cpu time limit
-  const compactedStateStr = await getFromStore(process.env as any, 'state')
+  const compactedStateStr = await getFromStore(process.env as any, 'state_v2')
 
   // Only present these values to client
   const monitors = workerConfig.monitors.map((monitor) => {
