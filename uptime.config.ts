@@ -51,12 +51,13 @@ function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[
     },
     {
       id: `${prefix}-doq`,
-      name: 'DoQ (QUIC)',
-      method: 'TCP_PING',
-      target: `${ip}:853`,
-      tooltip: `DNS-over-QUIC · ${label} (port 853)`,
+      name: 'DoH Endpoint',
+      method: 'GET',
+      target: `https://${ip}/dns-query?name=example.com&type=A`,
+      tooltip: `DNS-over-HTTPS resolve check · ${label}`,
       statusPageLink: 'https://pure-dns.org/docs',
       timeout: 10,
+      expectedCodes: [200],
     },
   ]
 }

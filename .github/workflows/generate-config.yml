@@ -55,7 +55,7 @@ jobs:
               return {
                 id: getMonitorId(s),
                 name: emoji + ' ' + city,
-                method: 'TCP',
+                method: 'TCP_PING',
                 target: s.ip_address_v4 + ':443',
                 tooltip: 'DNS-over-HTTPS · ' + city + ', ' + s.country_code,
                 statusPageLink: 'https://pure-dns.org',
