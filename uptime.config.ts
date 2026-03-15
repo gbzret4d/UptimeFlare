@@ -28,17 +28,19 @@ const pageConfig: PageConfig = {
   },
 }
 
-/** Build DoH + DoT + DoQ monitors for a single edge node. */
-function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[] {
+/** Build DoH + DoT + DNSCrypt monitors for a single edge node. */
+function nodeMonitors(prefix: string, label: string, ip: string, host: string): MonitorTarget[] {
   return [
     {
       id: `${prefix}-doh`,
       name: 'DoH (HTTPS)',
-      method: 'TCP_PING',
-      target: `${ip}:443`,
+      // TCP_PING on port 443 is blocked by Cloudflare Workers egress policy.
+      // Use HTTP GET with the node hostname so Cloudflare proxies it normally.
+      method: 'GET',
+      target: `https://${host}/dns-query`,
+      expectedCodes: [200, 400],  // 400 = no DNS query param, but server is up
       tooltip: `DNS-over-HTTPS · ${label}`,
       statusPageLink: 'https://pure-dns.org/docs',
-      timeout: 10000,
     },
     {
       id: `${prefix}-dot`,
@@ -51,10 +53,10 @@ function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[
     },
     {
       id: `${prefix}-doq`,
-      name: 'Port :853 TCP',
+      name: 'DNSCrypt',
       method: 'TCP_PING',
-      target: `${ip}:853`,
-      tooltip: `Port 853 TCP reachability check · ${label}`,
+      target: `${ip}:8443`,
+      tooltip: `DNSCrypt · ${label}`,
       statusPageLink: 'https://pure-dns.org/docs',
       timeout: 10000,
     },
@@ -68,12 +70,12 @@ const workerConfig: WorkerConfig = {
     gracePeriod: 2,
   },
   monitors: [
-    ...nodeMonitors('node-de-01', 'Frankfurt, Germany',    '45.145.42.184'),
-    ...nodeMonitors('node-at-01', 'Vienna, Austria',       '91.244.70.155'),
-    ...nodeMonitors('node-rs-01', 'Belgrade, Serbia',      '195.252.108.16'),
-    ...nodeMonitors('node-us-01', 'New York, USA',         '143.20.112.35'),
-    ...nodeMonitors('node-hk-01', 'Hong Kong',             '175.29.22.9'),
-    ...nodeMonitors('node-pl-01', 'Warsaw, Poland',        '31.59.137.88'),
+    ...nodeMonitors('node-de-01', 'Frankfurt, Germany',    '45.145.42.184',  'de-01-base.pure-dns.org'),
+    ...nodeMonitors('node-at-01', 'Vienna, Austria',       '91.244.70.155',  'at-01-base.pure-dns.org'),
+    ...nodeMonitors('node-rs-01', 'Belgrade, Serbia',      '195.252.108.16', 'rs-01-base.pure-dns.org'),
+    ...nodeMonitors('node-us-01', 'New York, USA',         '143.20.112.35',  'us-01-base.pure-dns.org'),
+    ...nodeMonitors('node-hk-01', 'Hong Kong',             '175.29.22.9',    'hk-01-base.pure-dns.org'),
+    ...nodeMonitors('node-pl-01', 'Warsaw, Poland',        '31.59.137.88',   'pl-01-base.pure-dns.org'),
     // ─── Central Infrastructure ───────────────────────────────────────────────
     {
       id: 'api-health',
