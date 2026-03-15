@@ -9,11 +9,12 @@ jobs:
     steps:
       - name: Copy CLOUDFLARE_API_TOKEN to privacy-dns-resolver
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CROSS_REPO_PAT }}
           CF_TOKEN_VALUE: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           echo "Setting CLOUDFLARE_API_TOKEN in privacy-dns-resolver..."
           echo "$CF_TOKEN_VALUE" | gh secret set CLOUDFLARE_API_TOKEN \
             --repo gbzret4d/privacy-dns-resolver \
             --body -
-          echo "Done! Check: https://github.com/gbzret4d/privacy-dns-resolver/settings/secrets/actions"
+          echo "Done! Token has been copied to privacy-dns-resolver."
+          echo "Check: https://github.com/gbzret4d/privacy-dns-resolver/settings/secrets/actions"
