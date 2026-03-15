@@ -19,10 +19,10 @@ const Worker = {
     // Create a wrapped MonitorState from stored compacted state
     let state: CompactedMonitorStateWrapper
     try {
-      state = new CompactedMonitorStateWrapper(await getFromStore(env, 'state'))
+      state = new CompactedMonitorStateWrapper(await getFromStore(env, 'state_v2'))
     } catch (e) {
       console.log('Error reading state from D1, resetting:', e)
-      await setToStore(env, 'state', '')
+      await setToStore(env, 'state_v2', '')
       state = new CompactedMonitorStateWrapper(null)
     }
     state.data.overallDown = 0
@@ -260,7 +260,7 @@ const Worker = {
     ) {
       console.log('Updating state...')
       state.data.lastUpdate = currentTimeSecond
-      await setToStore(env, 'state', state.getCompactedStateStr())
+      await setToStore(env, 'state_v2', state.getCompactedStateStr())
     } else {
       console.log('Skipping state update due to cooldown period.')
     }

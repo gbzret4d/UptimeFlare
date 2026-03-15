@@ -38,7 +38,7 @@ function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[
       target: `${ip}:443`,
       tooltip: `DNS-over-HTTPS · ${label}`,
       statusPageLink: 'https://pure-dns.org/docs',
-      timeout: 10,
+      timeout: 10000,
     },
     {
       id: `${prefix}-dot`,
@@ -47,7 +47,7 @@ function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[
       target: `${ip}:853`,
       tooltip: `DNS-over-TLS · ${label}`,
       statusPageLink: 'https://pure-dns.org/docs',
-      timeout: 10,
+      timeout: 10000,
     },
     {
       id: `${prefix}-doq`,
@@ -56,7 +56,7 @@ function nodeMonitors(prefix: string, label: string, ip: string): MonitorTarget[
       target: `${ip}:853`,
       tooltip: `Port 853 TCP reachability check · ${label}`,
       statusPageLink: 'https://pure-dns.org/docs',
-      timeout: 10,
+      timeout: 10000,
     },
   ]
 }

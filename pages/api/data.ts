@@ -13,7 +13,7 @@ const headers = {
 
 export default async function handler(req: NextRequest): Promise<Response> {
   const compactedState = new CompactedMonitorStateWrapper(
-    await getFromStore(process.env as any, 'state')
+    await getFromStore(process.env as any, 'state_v2')
   )
 
   if (compactedState.data.lastUpdate === 0) {
