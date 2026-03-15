@@ -1,0 +1,19 @@
+name: Bootstrap CF Token to privacy-dns-resolver
+
+on:
+  workflow_dispatch:
+
+jobs:
+  copy-secret:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy CLOUDFLARE_API_TOKEN to privacy-dns-resolver
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CF_TOKEN_VALUE: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "Setting CLOUDFLARE_API_TOKEN in privacy-dns-resolver..."
+          echo "$CF_TOKEN_VALUE" | gh secret set CLOUDFLARE_API_TOKEN \
+            --repo gbzret4d/privacy-dns-resolver \
+            --body -
+          echo "Done! Check: https://github.com/gbzret4d/privacy-dns-resolver/settings/secrets/actions"
