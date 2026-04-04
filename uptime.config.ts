@@ -18,17 +18,19 @@ const pageConfig: PageConfig = {
     { link: 'https://pure-dns.org/docs', label: 'Setup Guide' },
   ],
   group: {
-    '🇩🇪 Germany – Frankfurt':   ['node-de-01-doh', 'node-de-01-dot', 'node-de-01-doq'],
-    '🇦🇹 Austria – Vienna':     ['node-at-01-doh', 'node-at-01-dot', 'node-at-01-doq'],
-    '🇷🇸 Serbia – Belgrade':    ['node-rs-01-doh', 'node-rs-01-dot', 'node-rs-01-doq'],
-    '🇺🇸 United States – New York': ['node-us-01-doh', 'node-us-01-dot', 'node-us-01-doq'],
-    '🇭🇰 Hong Kong – Hong Kong': ['node-hk-01-doh', 'node-hk-01-dot', 'node-hk-01-doq'],
-    '🇵🇱 Poland – Warsaw':      ['node-pl-01-doh', 'node-pl-01-dot', 'node-pl-01-doq'],
-    '⚙️ Infrastructure':        ['api-health', 'website'],
+    '🇩🇪 Germany – Frankfurt':         ['node-de-01-doh', 'node-de-01-dot', 'node-de-01-doq'],
+    '🇧🇪 Belgium – Brussels':          ['node-be-01-doh', 'node-be-01-dot', 'node-be-01-doq'],
+    '🇳🇱 Netherlands':                 ['node-nl-01-doh', 'node-nl-01-dot', 'node-nl-01-doq'],
+    '🇭🇰 Hong Kong – Hong Kong':       ['node-hk-01-doh', 'node-hk-01-dot', 'node-hk-01-doq'],
+    '🇯🇵 Japan – Tokyo':               ['node-jp-01-doh', 'node-jp-01-dot', 'node-jp-01-doq'],
+    '🇳🇬 Nigeria – Lagos':             ['node-ng-01-doh', 'node-ng-01-dot', 'node-ng-01-doq'],
+    '🇺🇸 United States (East) – NY':   ['node-us-02-doh', 'node-us-02-dot', 'node-us-02-doq'],
+    '🇺🇸 United States (West) – LA':   ['node-us-03-doh', 'node-us-03-dot', 'node-us-03-doq'],
+    '⚙️ Infrastructure':               ['api-health', 'website'],
   },
 }
 
-/** Build DoH + DoT + DNSCrypt monitors for a single edge node. */
+/** Build DoH + DoT + DoQ monitors for a single edge node. */
 function nodeMonitors(prefix: string, label: string, ip: string, host: string): MonitorTarget[] {
   return [
     {
@@ -70,12 +72,16 @@ const workerConfig: WorkerConfig = {
     gracePeriod: 2,
   },
   monitors: [
-    ...nodeMonitors('node-de-01', 'Frankfurt, Germany',    '45.145.42.184',  'de-01-base.pure-dns.org'),
-    ...nodeMonitors('node-at-01', 'Vienna, Austria',       '91.244.70.155',  'at-01-base.pure-dns.org'),
-    ...nodeMonitors('node-rs-01', 'Belgrade, Serbia',      '195.252.108.16', 'rs-01-base.pure-dns.org'),
-    ...nodeMonitors('node-us-01', 'New York, USA',         '143.20.112.35',  'us-01-base.pure-dns.org'),
-    ...nodeMonitors('node-hk-01', 'Hong Kong',             '175.29.22.9',    'hk-01-base.pure-dns.org'),
-    ...nodeMonitors('node-pl-01', 'Warsaw, Poland',        '31.59.137.88',   'pl-01-base.pure-dns.org'),
+    // ─── Active Fleet — updated 2026-04-04 (IPs verified against Cloudflare DNS) ─
+    // Removed: at-01, rs-01, us-01, pl-01 (decommissioned)
+    ...nodeMonitors('node-de-01', 'Frankfurt, Germany',      '45.145.42.184',  'de-01-base.pure-dns.org'),
+    ...nodeMonitors('node-be-01', 'Brussels, Belgium',       '79.127.224.10',  'be-01-base.pure-dns.org'),
+    ...nodeMonitors('node-nl-01', 'Netherlands',             '82.25.56.137',   'nl-01-base.pure-dns.org'),
+    ...nodeMonitors('node-hk-01', 'Hong Kong',               '175.29.22.9',    'hk-01-base.pure-dns.org'),
+    ...nodeMonitors('node-jp-01', 'Tokyo, Japan',            '95.173.204.39',  'jp-01-base.pure-dns.org'),
+    ...nodeMonitors('node-ng-01', 'Lagos, Nigeria',          '31.59.137.88',   'ng-01-base.pure-dns.org'),
+    ...nodeMonitors('node-us-02', 'New York, USA (East)',    '95.173.192.152', 'us-02-base.pure-dns.org'),
+    ...nodeMonitors('node-us-03', 'Los Angeles, USA (West)', '79.127.250.38',  'us-03-base.pure-dns.org'),
     // ─── Central Infrastructure ───────────────────────────────────────────────
     {
       id: 'api-health',
