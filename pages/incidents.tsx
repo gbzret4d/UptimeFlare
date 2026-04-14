@@ -83,7 +83,7 @@ export default function IncidentsPage({ monitors }: { monitors: MonitorTarget[] 
   return (
     <>
       <Head>
-        <title>{pageConfig.title}</title>
+        <title>{pageConfig.title} – Incidents</title>
         <link rel="icon" href={pageConfig.favicon ?? '/favicon.png'} />
       </Head>
 
