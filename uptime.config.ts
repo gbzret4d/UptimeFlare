@@ -85,7 +85,7 @@ const workerConfig: WorkerConfig = {
     ...nodeMonitors('node-hr-01', 'Zagreb, Croatia',         '169.150.242.11',  'hr-01-base.pure-dns.org'),
     ...nodeMonitors('node-hk-01', 'Hong Kong',               '175.29.22.9',     'hk-01-base.pure-dns.org'),
     ...nodeMonitors('node-jp-01', 'Tokyo, Japan',            '95.173.204.39',   'jp-01-base.pure-dns.org'),
-    ...nodeMonitors('node-ng-01', 'Lagos, Nigeria',          '31.59.137.88',    'ng-01-base.pure-dns.org'),
+    ...nodeMonitors('node-ng-01', 'Lagos, Nigeria',          '185.111.108.54',  'ng-01-base.pure-dns.org'),
     ...nodeMonitors('node-us-02', 'New York, USA (East)',    '95.173.192.152',  'us-02-base.pure-dns.org'),
     ...nodeMonitors('node-us-03', 'Los Angeles, USA (West)', '79.127.250.38',   'us-03-base.pure-dns.org'),
     ...nodeMonitors('node-us-04', 'San Jose, USA (West)',    '169.150.221.209', 'us-04-base.pure-dns.org'),
